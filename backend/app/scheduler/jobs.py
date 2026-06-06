@@ -62,12 +62,13 @@ def start_scheduler():
         misfire_grace_time=300,
         next_run_time=now + timedelta(seconds=10),
     )
-    # News: wait for first interval (RSS is free, no rush)
+    # News: run 30s after startup, then every interval
     scheduler.add_job(
         job_update_news, "interval",
         minutes=settings.news_update_interval,
         id="news_update",
         misfire_grace_time=300,
+        next_run_time=now + timedelta(seconds=30),
     )
     # Football: delayed 3min after odds (avoid concurrent API calls)
     scheduler.add_job(

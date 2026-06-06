@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
-    # CORS
-    frontend_url: str = "http://localhost:5173"
+    # CORS - comma-separated list of allowed origins
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,https://wc2026-044.pages.dev"
 
     # The Odds API
     odds_api_key: str = ""

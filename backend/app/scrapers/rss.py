@@ -19,6 +19,13 @@ RSS_FEEDS = {
     "bbc": "https://feeds.bbci.co.uk/sport/football/rss.xml",
     "sky": "https://www.skysports.com/rss/12065",
     "guardian": "https://www.theguardian.com/football/rss.xml",
+    "googlenews": "https://news.google.com/rss/search?q=FIFA+World+Cup+2026&hl=en-US&gl=US&ceid=US:en",
+}
+
+# Browser-like User-Agent to avoid datacenter IP blocking
+_RSS_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+    "Accept": "application/rss+xml, application/xml, text/xml, */*",
 }
 
 # Team name mapping for news matching (all 48 WC2026 teams)
@@ -93,7 +100,7 @@ async def fetch_rss_news(db: AsyncSession):
     for feed_name, url in RSS_FEEDS.items():
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(url)
+                resp = await client.get(url, headers=_RSS_HEADERS)
                 resp.raise_for_status()
 
             feed = feedparser.parse(resp.text)
