@@ -1,0 +1,20 @@
+{
+	"name": "wc2026-betting-predictor",
+	"version": "2.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"backend": "cd backend && .venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+		"update-all": "node scripts/update-all.mjs"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
+		"@sveltejs/kit": "^2.61.1",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"svelte": "^5.56.2",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16"
+	}
+}
