@@ -6,4 +6,5 @@ build/
 backend/data/*.db
 backend/.env
 backend/.venv/
+backend/README.txt
 .wrangler/
