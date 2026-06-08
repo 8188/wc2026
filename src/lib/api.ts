@@ -267,6 +267,12 @@ export const settleBet = (betId: number, result: 'won' | 'lost') =>
 		settledAt: string;
 	}>;
 
+export const cancelBet = (betId: number) =>
+	post(`/bet/${betId}/cancel`, { bet_id: betId }) as Promise<{
+		id: number;
+		bankroll: number;
+	}>;
+
 export const fetchPendingBets = () =>
 	get('/bet/pending', { session_id: getSessionId() }) as Promise<BetResult[]>;
 

@@ -132,8 +132,54 @@ async def job_update_football(db: AsyncSession):
 
     fixture_count = 0
     injury_count = 0
+    score_count = 0
 
-    # 2. Fetch injuries per fixture (limit to conserve free API quota: 100 req/day)
+    # Build team name -> code mapping for score updates
+    team_name_to_code = {}
+    all_teams = (await db.execute(select(Team))).scalars().all()
+    for t in all_teams:
+        team_name_to_code[t.name_en.lower()] = t.code if t.name_en else ""
+        if t.name:
+            team_name_to_code[t.name.lower()] = t.code
+
+    # 2. Update match scores from finished fixtures
+    for fix in fixtures:
+        fixture_status = fix.get("fixture", {}).get("status", {}).get("short", "")
+        if fixture_status not in ("FT", "AET", "PEN"):  # only finished matches
+            continue
+
+        home_team_name = fix.get("teams", {}).get("home", {}).get("name", "")
+        away_team_name = fix.get("teams", {}).get("away", {}).get("name", "")
+        home_goals = fix.get("goals", {}).get("home")
+        away_goals = fix.get("goals", {}).get("away")
+
+        if home_goals is None or away_goals is None:
+            continue
+
+        # Find match in DB by team codes
+        home_code = None
+        away_code = None
+        for tn, tc in team_name_to_code.items():
+            if tn and home_team_name.lower() in tn:
+                home_code = tc
+            if tn and away_team_name.lower() in tn:
+                away_code = tc
+
+        if not home_code or not away_code:
+            continue
+
+        match_stmt = select(Match).where(
+            Match.home_team_code == home_code,
+            Match.away_team_code == away_code,
+        )
+        match = (await db.execute(match_stmt)).scalar_one_or_none()
+        if match and match.home_score is None:
+            match.home_score = int(home_goals)
+            match.away_score = int(away_goals)
+            match.status = "finished"
+            score_count += 1
+
+    # 3. Fetch injuries per fixture (limit to conserve free API quota: 100 req/day)
     api_calls = 1  # already used 1 for fixtures
     max_api_calls = 15  # conserve daily quota
     for fix in fixtures[:max_api_calls - 1]:
@@ -247,7 +293,8 @@ async def job_update_football(db: AsyncSession):
     await db.commit()
     logger.info(
         f"API-Football update: {fixture_count} fixtures, "
-        f"{injury_count} injuries, {news_count} news items"
+        f"{injury_count} injuries, {news_count} news items, "
+        f"{score_count} scores updated"
     )
 
 

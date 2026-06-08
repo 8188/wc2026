@@ -33,6 +33,10 @@ class SettleBetRequest(BaseModel):
     result: str  # won, lost
 
 
+class CancelBetRequest(BaseModel):
+    bet_id: int
+
+
 @router.post("")
 async def place_bet(req: PlaceBetRequest, db: AsyncSession = Depends(get_db)):
     """Place a simulated bet"""
@@ -165,6 +169,36 @@ async def settle_bet(bet_id: int, req: SettleBetRequest, db: AsyncSession = Depe
     }
 
 
+@router.post("/{bet_id}/cancel")
+async def cancel_bet(bet_id: int, req: CancelBetRequest, db: AsyncSession = Depends(get_db)):
+    """Cancel a pending bet and refund stake"""
+    stmt = select(Bet).where(Bet.id == bet_id)
+    bet = (await db.execute(stmt)).scalar_one_or_none()
+    if not bet:
+        raise HTTPException(status_code=404, detail="Bet not found")
+    if bet.status != "pending":
+        raise HTTPException(status_code=400, detail="Bet already settled or cancelled")
+
+    session_stmt = select(BettingSession).where(BettingSession.id == bet.session_id)
+    session = (await db.execute(session_stmt)).scalar_one_or_none()
+
+    bet.status = "cancelled"
+    bet.settled_at = datetime.utcnow()
+
+    # Refund stake
+    if session:
+        session.bankroll += bet.stake
+
+    await db.commit()
+    await db.refresh(bet)
+
+    return {
+        "id": bet.id,
+        "status": "cancelled",
+        "bankroll": session.bankroll if session else 0,
+    }
+
+
 @router.get("/pending")
 async def get_pending_bets(
     session_id: str,
@@ -203,7 +237,7 @@ async def get_bet_history(
     """Get settled bet history"""
     stmt = (
         select(Bet)
-        .where(Bet.session_id == session_id, Bet.status == "settled")
+        .where(Bet.session_id == session_id, Bet.status.in_(["settled", "cancelled"]))
         .order_by(Bet.settled_at.desc())
         .limit(limit)
     )
@@ -217,7 +251,7 @@ async def get_bet_history(
             "selectionLabel": b.selection_label,
             "odds": b.odds,
             "stake": b.stake,
-            "result": b.result,
+            "result": b.result if b.status == "settled" else "cancelled",
             "profit": b.profit,
             "betType": b.bet_type,
             "settledAt": b.settled_at.isoformat() if b.settled_at else None,
